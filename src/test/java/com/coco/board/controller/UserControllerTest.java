@@ -12,6 +12,11 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -83,7 +88,7 @@ public class UserControllerTest {
                 .password("Password123123!")
                 .build();
 
-        // when
+        // when 1
         MvcResult response = mockMvc.perform(MockMvcRequestBuilders.get("/auth/login")
                 .param("username", userRequest.getUsername())
                 .param("password", userRequest.getPassword())
@@ -91,17 +96,47 @@ public class UserControllerTest {
                 .andExpect(status().isOk())
                 .andReturn();
 
-        // then
-        assertEquals(200, response.getResponse().getStatus());
+        // then 1
+        assertEquals(200, response.getResponse().getStatus(), "Expected ok status");
 
+        // when 2
         MvcResult response2 = mockMvc.perform(MockMvcRequestBuilders.post("/auth/loginProc")
                     .param("username", userRequest.getUsername())
                     .param("password", userRequest.getPassword())
                     .contentType(MediaType.APPLICATION_FORM_URLENCODED))
                 .andReturn();
 
-        // then
+        // then 2
         assertEquals(302, response2.getResponse().getStatus(), "Expected redirection status");
         assertEquals("/", response2.getResponse().getRedirectedUrl(), "Redirect url should match");
+    }
+
+    @Test
+    @DisplayName("Should Successfully Logout When Valid Data Provided")
+    public void shouldSuccessfullyLogoutWhenValidDataProvided() throws Exception {
+        // given
+        UserDto.Request userRequest = UserDto.Request.builder()
+                .username("test123")
+                .password("Password123123!")
+                .build();
+
+        UserDetails userDetails = org.springframework.security.core.userdetails.User
+                .withUsername("test123")
+                .password("Password123123!")
+                .roles(String.valueOf(Role.USER))
+                .build();
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        // when
+        MvcResult response = mockMvc.perform(MockMvcRequestBuilders.post("/logout")
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED))
+                .andReturn();
+
+        // then
+        assertEquals(302, response.getResponse().getStatus(), "Expected redirection status");
+        assertEquals("/", response.getResponse().getRedirectedUrl(), "Redirect url should match");
+        assertNull(SecurityContextHolder.getContext().getAuthentication(), "SecurityContent should null");
     }
 }
